@@ -123,6 +123,7 @@ function setupNewTurn(roomNumber, newTurnReason) {
     } else if (newTurnReason == "newRound") {
         console.log("new Round");
         room.teams[room.turn.teamNumber - 1].previousClueGiver = Number(room.teams[room.turn.teamNumber - 1].players.indexOf(room.turn.clueGiver));
+        clearInterval(timer);
         room.roundWords = room.words.slice();
         room.turn.words = room.roundWords.slice();
         room.turn.guessedWords = [];
@@ -185,10 +186,6 @@ function tickTimer(roomNumber) {
     }
 }
 
-function sendClues(turn) {
-
-}
-
 io.on('connection', socket => {
     socket.on("createRoom", (data) => {
         roomNumber = socket.id.slice(0, 4).toUpperCase();
@@ -238,7 +235,7 @@ io.on('connection', socket => {
 
         console.log("sending new turn details to players");
 
-        io.to(room.turn.clueGiver.socketId).emit("cluer", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)] }));
+        io.to(room.turn.clueGiver.socketId).emit("cluer", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)], clueGiver: room.turn.clueGiver, teamNumber: room.turn.teamNumber }));
 
         for (var i = 0; i < room.turn.guessers.length; i++) {
             io.to(room.turn.guessers[i].socketId).emit("guessing", JSON.stringify({ clueGiver: room.turn.clueGiver, teamNumber: room.turn.teamNumber }));
@@ -257,16 +254,18 @@ io.on('connection', socket => {
         team.score++;
         console.log("added 1 to team " + team.teamNumber + " score: " + team.score);
         room.turn.guessedWords.push(data.gotClue);
-        room.turn.words = room.turn.words.filter(w => w !== data.gotClue);
-        room.roundWords = room.roundWords.filter(w => w !== data.gotClue);
+        room.turn.words.splice(room.turn.words.indexOf(data.gotClue), 1);
+        room.roundWords.splice(room.roundWords.indexOf(data.gotClue), 1);
         console.log("added " + data.gotClue + " to guessed words and removed from round words");
 
         for (var i = 0; i < room.turn.guessers.length; i++) {
-            io.to(room.turn.guessers[i].socketId).emit("newClueResult", JSON.stringify({ word: room.turn.guessedWords[room.turn.guessedWords.length - 1] }));
+            console.log("sending to guesser: " + room.turn.guessers[i].username);
+            io.to(room.turn.guessers[i].socketId).emit("newClueResult", JSON.stringify({ word: data.clue }));
         }
 
         for (var i = 0; i < room.turn.waiters.length; i++) {
-            io.to(room.turn.waiters[i].socketId).emit("newClueResult", JSON.stringify({ word: room.turn.guessedWords[room.turn.guessedWords.length - 1] }));
+            console.log("sending to waiter: " + room.turn.waiters[i].username);
+            io.to(room.turn.waiters[i].socketId).emit("newClueResult", JSON.stringify({ word: data.clue }));
         }
 
         console.log("sent clue result to players");
