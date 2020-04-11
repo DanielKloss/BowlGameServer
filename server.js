@@ -235,14 +235,14 @@ io.on('connection', socket => {
 
         console.log("sending new turn details to players");
 
-        io.to(room.turn.clueGiver.socketId).emit("cluer", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)], clueGiver: room.turn.clueGiver, teamNumber: room.turn.teamNumber }));
+        io.to(room.turn.clueGiver.socketId).emit("cluer", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)], clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber }));
 
         for (var i = 0; i < room.turn.guessers.length; i++) {
-            io.to(room.turn.guessers[i].socketId).emit("guessing", JSON.stringify({ clueGiver: room.turn.clueGiver, teamNumber: room.turn.teamNumber }));
+            io.to(room.turn.guessers[i].socketId).emit("guessing", JSON.stringify({ clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber }));
         }
 
         for (var i = 0; i < room.turn.waiters.length; i++) {
-            io.to(room.turn.waiters[i].socketId).emit("waiting", JSON.stringify({ clueGiver: room.turn.clueGiver, teamNumber: room.turn.teamNumber }));
+            io.to(room.turn.waiters[i].socketId).emit("waiting", JSON.stringify({ clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber }));
         }
 
         timer = setInterval(tickTimer, 1000, data.roomNumber);
@@ -260,12 +260,12 @@ io.on('connection', socket => {
 
         for (var i = 0; i < room.turn.guessers.length; i++) {
             console.log("sending to guesser: " + room.turn.guessers[i].username);
-            io.to(room.turn.guessers[i].socketId).emit("newClueResult", JSON.stringify({ word: data.clue }));
+            io.to(room.turn.guessers[i].socketId).emit("newClueResult", data.gotClue);
         }
 
         for (var i = 0; i < room.turn.waiters.length; i++) {
             console.log("sending to waiter: " + room.turn.waiters[i].username);
-            io.to(room.turn.waiters[i].socketId).emit("newClueResult", JSON.stringify({ word: data.clue }));
+            io.to(room.turn.waiters[i].socketId).emit("newClueResult", data.gotClue);
         }
 
         console.log("sent clue result to players");
