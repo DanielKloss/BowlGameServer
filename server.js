@@ -101,6 +101,7 @@ function setupNewTurn(roomNumber, newTurnReason) {
     let room = rooms.find(r => r.roomNumber == roomNumber);
 
     if (newTurnReason == "newGame") {
+        room.roundWords = room.words.slice();
         teamNumber = 1;
         clueGiver = room.teams[teamNumber - 1].players[0];
 
@@ -179,6 +180,16 @@ function endTurn(roomNumber) {
     io.to(room.turn.clueGiver.socketId).emit("startTurnButton");
 }
 
+function getPercentageWordsLeft(roomNumber) {
+    let room = rooms.find(r => r.roomNumber == roomNumber);
+
+    let percentage = (room.roundWords.length / room.words.length) * 100;
+
+    console.log(room.roundWords.length + " / " + room.words.length + " * 100 = " + percentage);
+
+    return Math.round(percentage);
+}
+
 io.on('connection', socket => {
     socket.on("createRoom", (data) => {
         roomNumber = socket.id.slice(0, 4).toUpperCase();
@@ -228,14 +239,17 @@ io.on('connection', socket => {
 
         console.log("sending new turn details to players");
 
-        io.to(room.turn.clueGiver.socketId).emit("cluer", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)], clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber, time: room.turn.time }));
+        let wordsLeft = room.roundWords.length;
+        let percantageWordsGuessed = getPercentageWordsLeft(room.roomNumber);
+
+        io.to(room.turn.clueGiver.socketId).emit("cluer", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)], clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber, time: room.turn.time, wordsLeft: wordsLeft, percantageWordsGuessed: percantageWordsGuessed }));
 
         for (var i = 0; i < room.turn.guessers.length; i++) {
-            io.to(room.turn.guessers[i].socketId).emit("guessing", JSON.stringify({ clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber, time: room.turn.time }));
+            io.to(room.turn.guessers[i].socketId).emit("guessing", JSON.stringify({ clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber, time: room.turn.time, wordsLeft: wordsLeft, percantageWordsGuessed: percantageWordsGuessed }));
         }
 
         for (var i = 0; i < room.turn.waiters.length; i++) {
-            io.to(room.turn.waiters[i].socketId).emit("waiting", JSON.stringify({ clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber, time: room.turn.time }));
+            io.to(room.turn.waiters[i].socketId).emit("waiting", JSON.stringify({ clueGiver: room.turn.clueGiver.username, teamNumber: room.turn.teamNumber, time: room.turn.time, wordsLeft: wordsLeft, percantageWordsGuessed: percantageWordsGuessed }));
         }
 
         timer = setInterval(endTurn, room.turn.time * 1000, data.roomNumber);
@@ -251,14 +265,17 @@ io.on('connection', socket => {
         room.roundWords.splice(room.roundWords.indexOf(data.gotClue), 1);
         console.log("added " + data.gotClue + " to guessed words and removed from round words");
 
+        let wordsLeft = room.roundWords.length;
+        let percantageWordsGuessed = getPercentageWordsLeft(room.roomNumber);
+
         for (var i = 0; i < room.turn.guessers.length; i++) {
             console.log("sending to guesser: " + room.turn.guessers[i].username);
-            io.to(room.turn.guessers[i].socketId).emit("newClueResult", data.gotClue);
+            io.to(room.turn.guessers[i].socketId).emit("newClueResult", JSON.stringify({ word: data.gotClue, wordsLeft: wordsLeft, percantageWordsGuessed: percantageWordsGuessed }));
         }
 
         for (var i = 0; i < room.turn.waiters.length; i++) {
             console.log("sending to waiter: " + room.turn.waiters[i].username);
-            io.to(room.turn.waiters[i].socketId).emit("newClueResult", data.gotClue);
+            io.to(room.turn.waiters[i].socketId).emit("newClueResult", JSON.stringify({ word: data.gotClue, wordsLeft: wordsLeft, percantageWordsGuessed: percantageWordsGuessed }));
         }
 
         console.log("sent clue result to players");
@@ -272,7 +289,7 @@ io.on('connection', socket => {
             io.to(turn.clueGiver.socketId).emit("startTurnButton");
         } else {
             console.log("sent new clue");
-            io.to(room.turn.clueGiver.socketId).emit("newClue", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)] }));
+            io.to(room.turn.clueGiver.socketId).emit("newClue", JSON.stringify({ word: room.turn.words[Math.floor(Math.random() * room.turn.words.length)], wordsLeft: wordsLeft, percantageWordsGuessed: percantageWordsGuessed  }));
         }
     });
 });
