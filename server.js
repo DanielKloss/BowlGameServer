@@ -185,10 +185,7 @@ function endTurn(roomNumber) {
 
 function getPercentageWordsLeft(roomNumber) {
     let room = rooms.find(r => r.roomNumber == roomNumber);
-
     let percentage = (room.roundWords.length / room.words.length) * 100;
-
-    console.log(room.roundWords.length + " / " + room.words.length + " * 100 = " + percentage);
 
     return Math.round(percentage);
 }
